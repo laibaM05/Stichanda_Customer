@@ -56,7 +56,7 @@ class _LoginPageState extends State<LoginPage> {
 
           // TODO: Navigate to home page
           Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (_) => HomePage()),
+            MaterialPageRoute(builder: (_) => const HomePage()),
           );
         }
       } else {
