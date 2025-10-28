@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../controller/auth_service.dart';
-import 'home_page.dart';
+import '../base/bottom_nav_scaffold.dart';
+import 'signup_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({Key? key}) : super(key: key);
@@ -54,9 +55,9 @@ class _LoginPageState extends State<LoginPage> {
             ),
           );
 
-          // TODO: Navigate to home page
+          // Navigate to app shell with bottom navigation
           Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (_) => const HomePage()),
+            MaterialPageRoute(builder: (_) => const BottomNavScaffold(initialIndex: 2)),
           );
         }
       } else {
@@ -177,17 +178,17 @@ class _LoginPageState extends State<LoginPage> {
                     onPressed: _isLoading ? null : _handleLogin,
                     child: _isLoading
                         ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                            ),
-                          )
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
                         : Text(
-                            'Login',
-                            style: textTheme.labelLarge,
-                          ),
+                      'Login',
+                      style: textTheme.labelLarge,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 60),
@@ -201,7 +202,13 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                     TextButton(
                       onPressed: () {
-                        // Handle sign up
+                        // Navigate to sign up page
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const SignUpPage(),
+                          ),
+                        );
                       },
                       child: Text(
                         'Sign up',

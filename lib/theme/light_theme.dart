@@ -1,5 +1,14 @@
 import 'package:flutter/material.dart';
 
+// Color constants
+class AppColors {
+  static const Color primaryColor = Color(0xFFD49649); // Gold/Amber color
+  static const Color textColor = Color(0xFF2D3142); // Dark text color
+  static const Color backgroundColor = Colors.white;
+  static const Color secondaryTextColor = Color(0xFF8A8A8A);
+  static const Color inputBackground = Color(0xFFF5F5F5);
+}
+
 final ThemeData lightTheme = ThemeData(
   useMaterial3: true,
   brightness: Brightness.light,

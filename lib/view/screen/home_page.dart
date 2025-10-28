@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../controller/tailor_controller.dart';
-import 'chat_page.dart';
-import 'profile_page.dart';
-import 'orders_page.dart';
 import 'create_order_page.dart';
+import '../base/bottom_nav_scaffold.dart';
+import 'chat_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -25,6 +24,12 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    final inShell = context.findAncestorWidgetOfExactType<BottomNavScaffold>() != null;
+    if (!inShell) {
+      // If HomePage is opened directly, show it inside the bottom nav shell
+      return const BottomNavScaffold(initialIndex: 2);
+    }
+
     final theme = Theme.of(context);
     final accent = const Color(0xFFD29356);
 
@@ -190,7 +195,14 @@ class _HomePageState extends State<HomePage> {
 
                           // Chat button
                           ElevatedButton(
-                            onPressed: () {},
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => ChatPage(tailor: t),
+                                ),
+                              );
+                            },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: accent,
                               foregroundColor: Colors.white,
@@ -243,54 +255,6 @@ class _HomePageState extends State<HomePage> {
             ],
           ),
         ),
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 2,
-        selectedItemColor: accent,
-        unselectedItemColor: Colors.grey[500],
-        showUnselectedLabels: true,
-        type: BottomNavigationBarType.fixed,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.chat_bubble_outline),
-            label: 'Chat',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline),
-            label: 'Profile',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.list_alt_outlined),
-            label: 'Orders',
-          ),
-        ],
-        onTap: (i) {
-          if (i == 0) {
-            // Chat
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const ChatPage()),
-            );
-          } else if (i == 1) {
-            // Profile
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const ProfilePage()),
-            );
-          } else if (i == 2) {
-            // Home - already here, do nothing
-          } else if (i == 3) {
-            // Orders
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const OrdersPage()),
-            );
-          }
-        },
       ),
     );
   }
