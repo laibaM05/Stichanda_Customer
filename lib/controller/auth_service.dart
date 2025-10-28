@@ -28,7 +28,7 @@ class AuthService {
       // Get customer data from Firestore
       if (userCredential.user != null) {
         final customerDoc = await _firestore
-            .collection('customers')
+            .collection('customer')
             .doc(userCredential.user!.uid)
             .get();
 
@@ -62,7 +62,7 @@ class AuthService {
           );
 
           // Save to Firestore
-          await _firestore.collection('customers').doc(userCredential.user!.uid).set({
+          await _firestore.collection('customer').doc(userCredential.user!.uid).set({
             'username': newCustomer.username,
             'name': newCustomer.name,
             'email': newCustomer.email,
@@ -120,7 +120,7 @@ class AuthService {
         );
 
         // Save to Firestore
-        await _firestore.collection('customers').doc(userCredential.user!.uid).set({
+        await _firestore.collection('customer').doc(userCredential.user!.uid).set({
           'username': newCustomer.username,
           'name': newCustomer.name,
           'email': newCustomer.email,
@@ -154,7 +154,7 @@ class AuthService {
     if (user != null) {
       try {
         final customerDoc = await _firestore
-            .collection('customers')
+            .collection('customer')
             .doc(user.uid)
             .get();
 
@@ -219,7 +219,7 @@ class AuthService {
         if (profilePicUrl != null) updateData['profilePicUrl'] = profilePicUrl;
 
         if (updateData.isNotEmpty) {
-          await _firestore.collection('customers').doc(user.uid).update(updateData);
+          await _firestore.collection('customer').doc(user.uid).update(updateData);
 
           // Update local customer object
           if (_currentCustomer != null) {
