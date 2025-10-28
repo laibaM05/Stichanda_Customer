@@ -1,89 +1,92 @@
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/customer_model.dart';
 
 class AuthService {
+  // Firebase instances
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
   // Currently logged-in customer
   static CustomerModel? _currentCustomer;
 
-  // Dummy customers for testing
-  static final List<CustomerModel> _dummyCustomers = [
-    CustomerModel(
-      id: '1',
-      username: 'john@example.com',
-      password: 'password123',
-      name: 'John Doe',
-      phoneNumber: '+92 300 1234567',
-      email: 'john@example.com',
-      address: 'House #123, Street 45, DHA Phase 5, Karachi',
-      gender: 'Male',
-      profilePicUrl: 'assets/images/Stitchanda Customer logo.png',
-      createdAt: DateTime.now().subtract(const Duration(days: 30)),
-    ),
-    CustomerModel(
-      id: '2',
-      username: 'jane@example.com',
-      password: 'password456',
-      name: 'Jane Smith',
-      phoneNumber: '+92 321 9876543',
-      email: 'jane@example.com',
-      address: 'Flat 45B, Clifton Block 8, Karachi',
-      gender: 'Female',
-      createdAt: DateTime.now().subtract(const Duration(days: 20)),
-    ),
-    CustomerModel(
-      id: '3',
-      username: 'admin',
-      password: 'admin123',
-      name: 'Admin User',
-      phoneNumber: '+92 300 0000000',
-      email: 'admin@stitchanda.com',
-      address: 'Office Address, Karachi',
-      gender: 'Male',
-      createdAt: DateTime.now().subtract(const Duration(days: 10)),
-    ),
-    CustomerModel(
-      id: '4',
-      username: 'customer1',
-      password: '123456',
-      name: 'Sara Khan',
-      phoneNumber: '+92 333 5555555',
-      email: 'sara.khan@example.com',
-      address: 'House 789, Gulshan-e-Iqbal, Karachi',
-      gender: 'Female',
-      createdAt: DateTime.now().subtract(const Duration(days: 5)),
-    ),
-  ];
+  // Get current Firebase user
+  User? get currentUser => _auth.currentUser;
 
-  // Login with username/email and password
-  Future<CustomerModel?> login(String username, String password) async {
+  // Stream of auth state changes
+  Stream<User?> get authStateChanges => _auth.authStateChanges();
+
+  // Login with email and password
+  Future<CustomerModel?> login(String email, String password) async {
     try {
-      // For now, using dummy data
-      final customer = _dummyCustomers.firstWhere(
-        (customer) =>
-          (customer.username.toLowerCase() == username.toLowerCase()) &&
-          customer.password == password,
-        orElse: () => throw Exception('Invalid credentials'),
+      // Sign in with Firebase Auth
+      final UserCredential userCredential = await _auth.signInWithEmailAndPassword(
+        email: email.trim(),
+        password: password,
       );
 
-      // Set as current logged-in customer
-      _currentCustomer = customer;
-      return customer;
+      // Get customer data from Firestore
+      if (userCredential.user != null) {
+        final customerDoc = await _firestore
+            .collection('customers')
+            .doc(userCredential.user!.uid)
+            .get();
+
+        if (customerDoc.exists) {
+          final customerData = customerDoc.data()!;
+          _currentCustomer = CustomerModel(
+            id: userCredential.user!.uid,
+            username: customerData['username'] ?? email,
+            password: '', // Don't store password
+            name: customerData['name'] ?? '',
+            phoneNumber: customerData['phoneNumber'] ?? '',
+            email: customerData['email'] ?? email,
+            address: customerData['address'] ?? '',
+            gender: customerData['gender'] ?? '',
+            profilePicUrl: customerData['profilePicUrl'],
+            createdAt: (customerData['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+          );
+          return _currentCustomer;
+        } else {
+          // If customer document doesn't exist, create a basic one
+          final newCustomer = CustomerModel(
+            id: userCredential.user!.uid,
+            username: email,
+            password: '',
+            name: userCredential.user!.displayName ?? '',
+            email: email,
+            phoneNumber: userCredential.user!.phoneNumber ?? '',
+            address: '',
+            gender: '',
+            createdAt: DateTime.now(),
+          );
+
+          // Save to Firestore
+          await _firestore.collection('customers').doc(userCredential.user!.uid).set({
+            'username': newCustomer.username,
+            'name': newCustomer.name,
+            'email': newCustomer.email,
+            'phoneNumber': newCustomer.phoneNumber,
+            'address': newCustomer.address,
+            'gender': newCustomer.gender,
+            'createdAt': FieldValue.serverTimestamp(),
+          });
+
+          _currentCustomer = newCustomer;
+          return _currentCustomer;
+        }
+      }
+      return null;
+    } on FirebaseAuthException catch (e) {
+      print('Login error: ${e.message}');
+      throw Exception(_getAuthErrorMessage(e.code));
     } catch (e) {
       print('Login error: $e');
-      return null;
+      throw Exception('Login failed. Please try again.');
     }
   }
 
-  // Get current logged-in customer
-  CustomerModel? getCurrentCustomer() {
-    return _currentCustomer;
-  }
-
-  // Logout
-  void logout() {
-    _currentCustomer = null;
-  }
-
-  // Register new customer (for future use)
+  // Register new customer with Firebase Auth
   Future<CustomerModel?> register({
     required String name,
     required String email,
@@ -93,41 +96,177 @@ class AuthService {
     required String password,
   }) async {
     try {
-      // Check if username already exists
-      bool userExists = _dummyCustomers.any(
-        (customer) => customer.username.toLowerCase() == email.toLowerCase() ||
-                      customer.email?.toLowerCase() == email.toLowerCase(),
-      );
-
-      if (userExists) {
-        throw Exception('Email already exists');
-      }
-
-      // Create new customer with full details
-      final newCustomer = CustomerModel(
-        id: (_dummyCustomers.length + 1).toString(),
-        username: email.toLowerCase(),
+      // Create user in Firebase Auth
+      final UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
+        email: email.trim(),
         password: password,
-        name: name,
-        phoneNumber: phoneNumber,
-        email: email,
-        address: address,
-        gender: gender,
-        createdAt: DateTime.now(),
       );
 
-      _dummyCustomers.add(newCustomer);
-      _currentCustomer = newCustomer;
-      return newCustomer;
+      if (userCredential.user != null) {
+        // Update display name
+        await userCredential.user!.updateDisplayName(name);
+
+        // Create customer document in Firestore
+        final newCustomer = CustomerModel(
+          id: userCredential.user!.uid,
+          username: email.toLowerCase(),
+          password: '', // Don't store password
+          name: name,
+          phoneNumber: phoneNumber,
+          email: email,
+          address: address,
+          gender: gender,
+          createdAt: DateTime.now(),
+        );
+
+        // Save to Firestore
+        await _firestore.collection('customers').doc(userCredential.user!.uid).set({
+          'username': newCustomer.username,
+          'name': newCustomer.name,
+          'email': newCustomer.email,
+          'phoneNumber': newCustomer.phoneNumber,
+          'address': newCustomer.address,
+          'gender': newCustomer.gender,
+          'profilePicUrl': newCustomer.profilePicUrl,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+
+        _currentCustomer = newCustomer;
+        return newCustomer;
+      }
+      return null;
+    } on FirebaseAuthException catch (e) {
+      print('Registration error: ${e.message}');
+      throw Exception(_getAuthErrorMessage(e.code));
     } catch (e) {
       print('Registration error: $e');
-      return null;
+      throw Exception('Registration failed. Please try again.');
     }
   }
 
+  // Get current logged-in customer
+  Future<CustomerModel?> getCurrentCustomer() async {
+    if (_currentCustomer != null) {
+      return _currentCustomer;
+    }
 
-  // Get all customers (for testing)
-  Future<List<CustomerModel>> getAllCustomers() async {
-    return _dummyCustomers;
+    final user = _auth.currentUser;
+    if (user != null) {
+      try {
+        final customerDoc = await _firestore
+            .collection('customers')
+            .doc(user.uid)
+            .get();
+
+        if (customerDoc.exists) {
+          final customerData = customerDoc.data()!;
+          _currentCustomer = CustomerModel(
+            id: user.uid,
+            username: customerData['username'] ?? user.email ?? '',
+            password: '',
+            name: customerData['name'] ?? '',
+            phoneNumber: customerData['phoneNumber'] ?? '',
+            email: customerData['email'] ?? user.email ?? '',
+            address: customerData['address'] ?? '',
+            gender: customerData['gender'] ?? '',
+            profilePicUrl: customerData['profilePicUrl'],
+            createdAt: (customerData['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+          );
+          return _currentCustomer;
+        }
+      } catch (e) {
+        print('Error fetching customer: $e');
+      }
+    }
+    return null;
+  }
+
+  // Logout
+  Future<void> logout() async {
+    await _auth.signOut();
+    _currentCustomer = null;
+  }
+
+  // Reset password
+  Future<void> resetPassword(String email) async {
+    try {
+      await _auth.sendPasswordResetEmail(email: email.trim());
+    } on FirebaseAuthException catch (e) {
+      throw Exception(_getAuthErrorMessage(e.code));
+    }
+  }
+
+  // Update customer profile
+  Future<void> updateCustomerProfile({
+    String? name,
+    String? phoneNumber,
+    String? address,
+    String? gender,
+    String? profilePicUrl,
+  }) async {
+    final user = _auth.currentUser;
+    if (user != null) {
+      try {
+        final updateData = <String, dynamic>{};
+
+        if (name != null) {
+          updateData['name'] = name;
+          await user.updateDisplayName(name);
+        }
+        if (phoneNumber != null) updateData['phoneNumber'] = phoneNumber;
+        if (address != null) updateData['address'] = address;
+        if (gender != null) updateData['gender'] = gender;
+        if (profilePicUrl != null) updateData['profilePicUrl'] = profilePicUrl;
+
+        if (updateData.isNotEmpty) {
+          await _firestore.collection('customers').doc(user.uid).update(updateData);
+
+          // Update local customer object
+          if (_currentCustomer != null) {
+            _currentCustomer = CustomerModel(
+              id: _currentCustomer!.id,
+              username: _currentCustomer!.username,
+              password: '',
+              name: name ?? _currentCustomer!.name,
+              phoneNumber: phoneNumber ?? _currentCustomer!.phoneNumber,
+              email: _currentCustomer!.email,
+              address: address ?? _currentCustomer!.address,
+              gender: gender ?? _currentCustomer!.gender,
+              profilePicUrl: profilePicUrl ?? _currentCustomer!.profilePicUrl,
+              createdAt: _currentCustomer!.createdAt,
+            );
+          }
+        }
+      } catch (e) {
+        print('Error updating profile: $e');
+        throw Exception('Failed to update profile. Please try again.');
+      }
+    }
+  }
+
+  // Helper method to convert Firebase Auth error codes to user-friendly messages
+  String _getAuthErrorMessage(String code) {
+    switch (code) {
+      case 'user-not-found':
+        return 'No account found with this email.';
+      case 'wrong-password':
+        return 'Incorrect password.';
+      case 'invalid-email':
+        return 'Invalid email address.';
+      case 'user-disabled':
+        return 'This account has been disabled.';
+      case 'email-already-in-use':
+        return 'An account already exists with this email.';
+      case 'weak-password':
+        return 'Password is too weak. Please use a stronger password.';
+      case 'operation-not-allowed':
+        return 'Operation not allowed. Please contact support.';
+      case 'invalid-credential':
+        return 'Invalid credentials. Please check your email and password.';
+      case 'network-request-failed':
+        return 'Network error. Please check your internet connection.';
+      default:
+        return 'An error occurred. Please try again.';
+    }
   }
 }

@@ -20,9 +20,10 @@ class _ProfilePageState extends State<ProfilePage> {
     _loadCustomer();
   }
 
-  void _loadCustomer() {
+  Future<void> _loadCustomer() async {
+    final customer = await _authService.getCurrentCustomer();
     setState(() {
-      _customer = _authService.getCurrentCustomer();
+      _customer = customer;
     });
   }
 

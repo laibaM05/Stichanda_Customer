@@ -143,10 +143,10 @@ class _CreatePasswordPageState extends State<CreatePasswordPage> {
           (route) => false,
         );
       } else {
-        _showErrorDialog('Failed to create account. Email may already be in use.');
+        _showErrorDialog('Failed to create account. Please try again.');
       }
     } catch (e) {
-      _showErrorDialog('Failed to create account. Please try again.');
+      _showErrorDialog(e.toString().replaceAll('Exception: ', ''));
     } finally {
       if (mounted) {
         setState(() {

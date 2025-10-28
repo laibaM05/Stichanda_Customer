@@ -31,26 +31,26 @@ class _LoginPageState extends State<LoginPage> {
       _errorMessage = '';
     });
 
-    final username = _emailController.text.trim();
+    final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
 
-    if (username.isEmpty || password.isEmpty) {
+    if (email.isEmpty || password.isEmpty) {
       setState(() {
-        _errorMessage = 'Please enter both username and password';
+        _errorMessage = 'Please enter both email and password';
         _isLoading = false;
       });
       return;
     }
 
     try {
-      final customer = await _authService.login(username, password);
+      final customer = await _authService.login(email, password);
 
       if (customer != null) {
         // Login successful
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Welcome back, ${customer.username}!'),
+              content: Text('Welcome back, ${customer.name?.isNotEmpty == true ? customer.name : customer.username}!'),
               backgroundColor: Colors.green,
             ),
           );
@@ -62,12 +62,12 @@ class _LoginPageState extends State<LoginPage> {
         }
       } else {
         setState(() {
-          _errorMessage = 'Invalid username or password';
+          _errorMessage = 'Login failed. Please try again.';
         });
       }
     } catch (e) {
       setState(() {
-        _errorMessage = 'Login failed. Please try again.';
+        _errorMessage = e.toString().replaceAll('Exception: ', '');
       });
     } finally {
       if (mounted) {
